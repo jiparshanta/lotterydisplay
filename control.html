@@ -31,10 +31,10 @@
   .status.err { color: var(--accent); }
   #slotsWrap { overflow-x: auto; }
   .slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 8px; }
-  .s { display: grid; grid-template-columns: 30px 44px 1fr; gap: 6px; align-items: center; padding: 6px;
+  .s { display: grid; grid-template-columns: 30px 52px 1fr; gap: 6px; align-items: center; padding: 6px;
     border: 1px solid var(--line); border-radius: 8px; }
   .s .n { font-weight: 700; color: var(--muted); text-align: right; }
-  .s .thumb { width: 44px; height: 64px; background: var(--bg); border-radius: 4px; display: flex; align-items: center;
+  .s .thumb { width: 52px; height: 52px; background: var(--bg); border-radius: 4px; display: flex; align-items: center;
     justify-content: center; overflow: hidden; font-size: 10px; color: var(--muted); }
   .s .thumb img { max-width: 100%; max-height: 100%; }
   .s .f { display: grid; grid-template-columns: 1fr 70px; gap: 4px; }
@@ -49,7 +49,7 @@
   .check { flex-direction: row !important; align-items: center; color: var(--fg) !important; font-size: 13px !important; }
   .lib { display: flex; flex-wrap: wrap; gap: 8px; }
   .lib .it { width: 90px; text-align: center; font-size: 12px; }
-  .lib .it img { width: 90px; height: 130px; object-fit: contain; background: var(--bg); border-radius: 4px; display: block; }
+  .lib .it img { width: 90px; height: 90px; object-fit: contain; background: var(--bg); border-radius: 4px; display: block; }
   .muted { color: var(--muted); font-size: 12px; }
   code { background: var(--bg); padding: 1px 4px; border-radius: 4px; }
 </style>
@@ -116,7 +116,12 @@
   <section>
     <h2>Display settings</h2>
     <div class="grid2">
-      <label>Image sources (one per line, in order)
+      <label>Image style
+        <select id="setStyle">
+          <option value="card">Display card (square top: price, game #, name)</option>
+          <option value="full">Full ticket</option>
+        </select></label>
+      <label>Full-ticket image sources (one per line, in order)
         <textarea id="setSources" style="min-height:80px"></textarea></label>
       <div style="display:grid;gap:10px">
         <label>Title above grid (blank = none) <input type="text" id="setTitle"></label>
@@ -318,6 +323,7 @@
   // ---------- Settings ----------
   function fillSettings() {
     $('setSources').value = settings.imageSources.join('\n');
+    $('setStyle').value = settings.imageStyle;
     $('setTitle').value = settings.title;
     $('setCols').value = settings.columns;
     $('setAspect').value = settings.ticketAspect;
@@ -329,6 +335,8 @@
   }
   $('saveSettings').onclick = function () {
     settings = {
+      imageStyle: $('setStyle').value,
+      cardSources: settings.cardSources,
       imageSources: $('setSources').value.split(/\r?\n/).map(clean).filter(Boolean),
       title: clean($('setTitle').value),
       columns: Math.max(0, Math.min(N, parseInt($('setCols').value, 10) || 0)),
@@ -393,7 +401,7 @@
       var it = document.createElement('div');
       it.className = 'it'; it.style.cursor = 'pointer';
       it.innerHTML = '<img alt="" loading="lazy"><div><b>#' + g.game + '</b> $' + g.price + '</div><div class="muted"></div>';
-      it.firstChild.src = 'tickets/' + g.game + '.gif';
+      it.firstChild.src = 'tickets/cards/' + g.game + '.gif';
       it.lastChild.textContent = g.name;
       it.onclick = function () {
         $('qsGame').value = g.game; $('qsName').textContent = gameName(g.game);

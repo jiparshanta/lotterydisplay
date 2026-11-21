@@ -20,6 +20,15 @@
       'tickets/{game}.png',
       'https://www.texaslottery.com/export/sites/lottery/Images/scratchoffs/{game}_img1.gif'
     ],
+    // 'card' = official square display card (price, game #, name);
+    // 'full' = whole front of the ticket.
+    imageStyle: 'card',
+    cardSources: [
+      'tickets/cards/{game}.gif',
+      'tickets/cards/{game}.jpg',
+      'tickets/cards/{game}.png',
+      'https://www.texaslottery.com/export/sites/lottery/Images/scratchoffs/{game}_200X200.gif'
+    ],
     columns: 0,            // 0 = auto-fit
     ticketAspect: 0.62,    // width / height of a ticket image (portrait)
     showSlotNumber: true,
@@ -143,9 +152,10 @@
     if (!game) return Promise.resolve(null);
     return uploadedUrl(game).then(function (up) {
       if (up) return up;
-      var key = game + '|' + settings.imageSources.join('|');
+      var sources = settings.imageStyle === 'card' && settings.cardSources ? settings.cardSources : settings.imageSources;
+      var key = game + '|' + sources.join('|');
       if (resolveCache[key] !== undefined) return resolveCache[key];
-      var candidates = settings.imageSources.map(function (t) { return t.split('{game}').join(encodeURIComponent(game)); });
+      var candidates = sources.map(function (t) { return t.split('{game}').join(encodeURIComponent(game)); });
       return tryLoad(candidates, 0).then(function (url) { resolveCache[key] = url; return url; });
     });
   }

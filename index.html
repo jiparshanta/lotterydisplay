@@ -119,7 +119,7 @@
   function layout() {
     var W = grid.clientWidth, H = grid.clientHeight;
     var gap = +settings.gap || 0;
-    var a = +settings.ticketAspect || 0.62;
+    var a = settings.imageStyle === 'card' ? 1 : (+settings.ticketAspect || 0.62);
     var barH = (settings.showSlotNumber || settings.showGameNumber || settings.showPrice) ? 1 : 0;
     var best = null;
     var fixed = +settings.columns || 0;

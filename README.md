@@ -31,9 +31,14 @@ The display updates as soon as you save in the control panel. Both pages must us
 
 ## Ticket images
 
-Images for every current Texas Lottery scratch-off game (78 games) are saved in `tickets/` as `{game}.gif`. `games.json` lists each game's name, price and top prize. Prices fill in automatically on the display. You can still type a price yourself to override it.
+Two images are saved for every current Texas Lottery scratch-off game (78 games):
 
-For each game number, images are tried in this order:
+- **Display card** (the default): the official square card with the price, game number and name, in `tickets/cards/{game}.gif`.
+- **Full ticket:** the whole front of the ticket, in `tickets/{game}.gif`.
+
+To switch between them, use **Display settings → Image style** in the control panel. `games.json` lists each game's name, price and top prize. Prices fill in automatically on the display. You can still type a price yourself to override it.
+
+For full tickets, images for each game number are tried in this order. Display cards work the same way using `tickets/cards/` and the live `{game}_200X200.gif` image:
 
 1. An image uploaded in the control panel (stored in the browser).
 2. `tickets/{game}.gif`, `.jpg` or `.png` in this repo.

@@ -2,7 +2,8 @@
 """Download every current Texas Lottery scratch-off ticket image + game list.
 
 Usage (from the repo root):  python3 tools/update_tickets.py
-  - writes tickets/{game}.gif  (front of ticket)
+  - writes tickets/{game}.gif        (full front of ticket)
+  - writes tickets/cards/{game}.gif  (200x200 display card: price, game #, name)
   - writes games.json          (game number, name, price, top prize, start date)
 Existing images are kept; pass --force to re-download them.
 Uses only the Python standard library.
@@ -16,7 +17,10 @@ import urllib.request
 
 BASE = 'https://www.texaslottery.com/export/sites/lottery'
 LIST_URL = BASE + '/Games/Scratch_Offs/all.html'
-IMG_URL = BASE + '/Images/scratchoffs/{game}_img1.gif'
+IMAGES = [  # (url template, local folder)
+    (BASE + '/Images/scratchoffs/{game}_img1.gif', 'tickets'),
+    (BASE + '/Images/scratchoffs/{game}_200X200.gif', os.path.join('tickets', 'cards')),
+]
 UA = {'User-Agent': 'Mozilla/5.0 (scratch-off display updater)'}
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -46,22 +50,23 @@ def main():
     games = parse_games(get(LIST_URL).decode('utf-8', 'replace'))
     if not games:
         sys.exit('No games found - the Texas Lottery page layout may have changed.')
-    os.makedirs(os.path.join(ROOT, 'tickets'), exist_ok=True)
     new = failed = 0
-    for g in games:
-        path = os.path.join(ROOT, 'tickets', g['game'] + '.gif')
-        if os.path.exists(path) and not force:
-            continue
-        try:
-            data = get(IMG_URL.format(game=g['game']))
-            if not data.startswith(b'GIF'):
-                raise ValueError('not a GIF')
-            with open(path, 'wb') as f:
-                f.write(data)
-            new += 1
-        except Exception as e:  # keep going on a single bad image
-            failed += 1
-            print('  failed', g['game'], e)
+    for url, folder in IMAGES:
+        os.makedirs(os.path.join(ROOT, folder), exist_ok=True)
+        for g in games:
+            path = os.path.join(ROOT, folder, g['game'] + '.gif')
+            if os.path.exists(path) and not force:
+                continue
+            try:
+                data = get(url.format(game=g['game']))
+                if not data.startswith(b'GIF'):
+                    raise ValueError('not a GIF')
+                with open(path, 'wb') as f:
+                    f.write(data)
+                new += 1
+            except Exception as e:  # keep going on a single bad image
+                failed += 1
+                print('  failed', folder, g['game'], e)
     games.sort(key=lambda g: int(g['game']))
     with open(os.path.join(ROOT, 'games.json'), 'w') as f:
         json.dump(games, f, indent=1)
