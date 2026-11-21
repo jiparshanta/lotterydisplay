@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scratch-Off Display</title>
+<style>
+  :root { --bg: #0b0d12; --gap: 4px; --fg: #f5f7fb; --muted: #8a93a6; --accent: #ffcc33; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--fg);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  body { display: flex; flex-direction: column; }
+  #title { flex: none; text-align: center; font-weight: 800; letter-spacing: .04em; color: var(--accent);
+    font-size: clamp(14px, 2.6vh, 40px); padding: .3em 0 .15em; }
+  #title:empty { display: none; }
+  #grid { flex: 1; min-height: 0; display: grid; gap: var(--gap); padding: var(--gap);
+    justify-content: center; align-content: center; }
+  .slot { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0;
+    background: #161a23; border-radius: 4px; overflow: hidden; cursor: pointer; }
+  .slot .img { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
+  .slot img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+  .slot .ph { color: var(--muted); font-weight: 700; text-align: center; line-height: 1.1;
+    font-size: var(--ph-size, 14px); padding: 2px; }
+  .slot .ph small { display: block; font-weight: 500; font-size: .6em; opacity: .8; }
+  .slot .bar { flex: none; display: flex; justify-content: space-between; align-items: center; gap: 2px;
+    background: #000; font-weight: 700; font-size: var(--bar-size, 11px); line-height: 1.25; padding: 0 .35em;
+    white-space: nowrap; overflow: hidden; }
+  .slot .bar:empty { display: none; }
+  .slot .num { color: var(--muted); }
+  .slot .game { color: var(--fg); }
+  .slot .price { color: var(--accent); }
+  .slot.empty { background: #10131a; }
+  .slot.empty .ph { opacity: .45; }
+  .slot.soldout .img::after { content: "SOLD OUT"; position: absolute; left: 0; right: 0; top: 40%;
+    transform: rotate(-20deg); text-align: center; font-weight: 900; color: #fff; background: rgba(200,20,30,.85);
+    font-size: var(--bar-size, 11px); padding: .2em 0; letter-spacing: .08em; }
+  .slot.flash { animation: flash 1.2s ease-out; }
+  @keyframes flash { 0% { box-shadow: 0 0 0 3px var(--accent); } 100% { box-shadow: 0 0 0 0 transparent; } }
+
+  /* Quick-entry overlay (press Enter or click a slot) */
+  #quick { position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+    background: rgba(0,0,0,.6); z-index: 10; }
+  #quick.open { display: flex; }
+  #quick form { background: #1c2130; padding: 20px 22px; border-radius: 10px; min-width: 320px;
+    box-shadow: 0 10px 40px rgba(0,0,0,.6); }
+  #quick h2 { margin: 0 0 12px; font-size: 18px; }
+  #quick label { display: block; font-size: 13px; color: var(--muted); margin: 8px 0 4px; }
+  #quick input[type=text], #quick input[type=number] { width: 100%; font-size: 22px; padding: 8px 10px; border-radius: 6px;
+    border: 1px solid #39405a; background: #0f1320; color: var(--fg); }
+  #quick .row { display: flex; gap: 10px; }
+  #quick .row > div { flex: 1; }
+  #quick .btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+  #quick button { font-size: 15px; padding: 8px 14px; border-radius: 6px; border: 0; cursor: pointer; }
+  #quick .primary { background: var(--accent); color: #111; font-weight: 700; }
+  #quick .ghost { background: #2c3347; color: var(--fg); }
+  #quick .hint { font-size: 12px; color: var(--muted); margin-top: 10px; }
+  #hud { position: fixed; right: 8px; bottom: 8px; z-index: 5; display: flex; gap: 6px; opacity: 0; transition: opacity .3s; }
+  body:hover #hud { opacity: .9; }
+  #hud a, #hud button { font: 600 12px system-ui; color: #ddd; background: rgba(30,35,50,.9); border: 1px solid #3a4258;
+    padding: 6px 10px; border-radius: 6px; text-decoration: none; cursor: pointer; }
+  body.kiosk #hud { display: none; }
+  body.kiosk { cursor: none; }
+</style>
+</head>
+<body>
+<div id="title"></div>
+<div id="grid"></div>
+
+<div id="hud">
+  <button id="btnQuick" title="Enter (keyboard)">Set slot</button>
+  <a href="control.html" target="txso-control">Control panel</a>
+  <button id="btnFs">Fullscreen</button>
+</div>
+
+<div id="quick">
+  <form id="quickForm" autocomplete="off">
+    <h2>Set ticket</h2>
+    <div class="row">
+      <div><label for="qSlot">Slot (1–74)</label><input id="qSlot" type="number" min="1" max="74" required></div>
+      <div><label for="qPrice">Price ($)</label><input id="qPrice" type="text" inputmode="decimal" placeholder="optional"></div>
+    </div>
+    <label for="qGame">Game number</label>
+    <input id="qGame" type="text" inputmode="numeric" placeholder="e.g. 2551 — leave blank to clear">
+    <label style="display:flex;gap:6px;align-items:center;margin-top:10px;color:var(--fg)">
+      <input id="qSold" type="checkbox"> Sold out</label>
+    <div class="btns">
+      <button type="button" class="ghost" id="qCancel">Cancel</button>
+      <button type="submit" class="primary">Display</button>
+    </div>
+    <div class="hint">Shortcut: press <b>Enter</b> anywhere, type slot, Tab, game number, Enter. <b>F</b> = fullscreen, <b>K</b> = kiosk (hide buttons/cursor).</div>
+  </form>
+</div>
+
+<script src="js/store.js"></script>
+<script>
+(function () {
+  'use strict';
+  var N = TXSO.SLOT_COUNT;
+  var grid = document.getElementById('grid');
+  var titleEl = document.getElementById('title');
+  var slots = TXSO.getSlots();
+  var settings = TXSO.getSettings();
+  var cells = [];
+  var renderToken = {};
+
+  // Build the 74 cells once.
+  for (var i = 0; i < N; i++) {
+    var el = document.createElement('div');
+    el.className = 'slot';
+    el.dataset.index = i;
+    el.innerHTML = '<div class="img"></div><div class="bar"></div>';
+    el.addEventListener('click', function () { openQuick(+this.dataset.index); });
+    grid.appendChild(el);
+    cells.push(el);
+  }
+
+  /* Choose columns/rows so 74 tickets fill the screen as large as possible. */
+  function layout() {
+    var W = grid.clientWidth, H = grid.clientHeight;
+    var gap = +settings.gap || 0;
+    var a = +settings.ticketAspect || 0.62;
+    var barH = (settings.showSlotNumber || settings.showGameNumber || settings.showPrice) ? 1 : 0;
+    var best = null;
+    var fixed = +settings.columns || 0;
+    for (var c = 1; c <= N; c++) {
+      if (fixed && c !== fixed) continue;
+      var r = Math.ceil(N / c);
+      var cw = (W - gap * (c + 1)) / c;
+      var ch = (H - gap * (r + 1)) / r;
+      if (cw <= 0 || ch <= 0) continue;
+      var bar = barH ? Math.max(9, Math.min(18, cw * 0.12)) * 1.25 : 0;
+      var ih = ch - bar;
+      // ticket image fits within cw x ih, preserving aspect
+      var w = Math.min(cw, ih * a);
+      var h = w / a;
+      var score = w * h;
+      if (!best || score > best.score) best = { c: c, r: r, w: w, h: h, cw: cw, ch: ch, bar: bar, score: score };
+    }
+    if (!best) return;
+    var cellW = Math.floor(best.w);
+    var cellH = Math.floor(best.h + best.bar);
+    grid.style.gridTemplateColumns = 'repeat(' + best.c + ', ' + cellW + 'px)';
+    grid.style.gridTemplateRows = 'repeat(' + best.r + ', ' + cellH + 'px)';
+    var barSize = Math.max(8, Math.min(18, cellW * 0.12));
+    grid.style.setProperty('--bar-size', barSize.toFixed(1) + 'px');
+    grid.style.setProperty('--ph-size', Math.max(10, Math.min(48, cellW * 0.2)).toFixed(1) + 'px');
+  }
+
+  function applySettings() {
+    document.documentElement.style.setProperty('--bg', settings.background || '#0b0d12');
+    document.documentElement.style.setProperty('--gap', (+settings.gap || 0) + 'px');
+    titleEl.textContent = settings.title || '';
+    layout();
+  }
+
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return '&#' + c.charCodeAt(0) + ';'; }); }
+
+  function renderCell(i, flash) {
+    var s = slots[i], el = cells[i];
+    var imgBox = el.firstChild, bar = el.lastChild;
+    var token = renderToken[i] = {};
+    el.classList.toggle('empty', !s.game);
+    el.classList.toggle('soldout', !!(s.game && s.soldOut));
+    var barHtml = '';
+    if (settings.showSlotNumber) barHtml += '<span class="num">' + (i + 1) + '</span>';
+    if (settings.showGameNumber && s.game) barHtml += '<span class="game">#' + esc(s.game) + '</span>';
+    if (settings.showPrice && s.price) barHtml += '<span class="price">$' + esc(s.price.replace(/^\$/, '')) + '</span>';
+    bar.innerHTML = barHtml;
+
+    if (!s.game) { imgBox.innerHTML = '<div class="ph">' + (i + 1) + '</div>'; return; }
+    imgBox.innerHTML = '<div class="ph">#' + esc(s.game) + '<small>loading…</small></div>';
+    TXSO.resolveImage(s.game, settings).then(function (url) {
+      if (renderToken[i] !== token) return; // slot changed meanwhile
+      if (url) {
+        var img = new Image();
+        img.alt = 'Game ' + s.game;
+        img.src = url;
+        imgBox.innerHTML = '';
+        imgBox.appendChild(img);
+      } else {
+        imgBox.innerHTML = '<div class="ph">#' + esc(s.game) + '<small>no image</small></div>';
+      }
+      if (flash) { el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
+    });
+  }
+
+  function renderAll(changedOnly) {
+    var fresh = TXSO.getSlots();
+    for (var i = 0; i < N; i++) {
+      var old = slots[i], nw = fresh[i];
+      var changed = old.game !== nw.game || old.price !== nw.price || old.soldOut !== nw.soldOut;
+      slots[i] = nw;
+      if (!changedOnly || changed) renderCell(i, changedOnly && changed);
+    }
+  }
+
+  TXSO.onChange(function (kind) {
+    if (kind === 'settings') { settings = TXSO.getSettings(); TXSO.clearResolveCache(); applySettings(); renderAll(false); }
+    else if (kind === 'images') { TXSO.clearResolveCache(); renderAll(false); }
+    else renderAll(true);
+  });
+  window.addEventListener('resize', layout);
+
+  // ----- Quick entry -----
+  var quick = document.getElementById('quick');
+  var qSlot = document.getElementById('qSlot'), qGame = document.getElementById('qGame');
+  var qPrice = document.getElementById('qPrice'), qSold = document.getElementById('qSold');
+  function fillQuick() {
+    var i = (+qSlot.value || 0) - 1;
+    if (i >= 0 && i < N) { qGame.value = slots[i].game; qPrice.value = slots[i].price; qSold.checked = slots[i].soldOut; }
+  }
+  function openQuick(i) {
+    quick.classList.add('open');
+    if (typeof i === 'number') { qSlot.value = i + 1; fillQuick(); qGame.focus(); qGame.select(); }
+    else { qSlot.value = ''; qGame.value = ''; qPrice.value = ''; qSold.checked = false; qSlot.focus(); }
+  }
+  function closeQuick() { quick.classList.remove('open'); }
+  qSlot.addEventListener('change', fillQuick);
+  document.getElementById('qCancel').onclick = closeQuick;
+  quick.addEventListener('click', function (e) { if (e.target === quick) closeQuick(); });
+  document.getElementById('quickForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var i = (+qSlot.value || 0) - 1;
+    if (i < 0 || i >= N) { qSlot.focus(); return; }
+    var all = TXSO.getSlots();
+    all[i] = { game: qGame.value.trim(), price: qPrice.value.trim(), soldOut: qSold.checked };
+    TXSO.saveSlots(all);
+    closeQuick();
+    renderAll(true);
+  });
+  document.getElementById('btnQuick').onclick = function () { openQuick(); };
+
+  function toggleFs() {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else document.documentElement.requestFullscreen && document.documentElement.requestFullscreen();
+  }
+  document.getElementById('btnFs').onclick = toggleFs;
+  document.addEventListener('keydown', function (e) {
+    if (quick.classList.contains('open')) { if (e.key === 'Escape') closeQuick(); return; }
+    if (e.key === 'Enter') { e.preventDefault(); openQuick(); }
+    else if (e.key === 'f' || e.key === 'F') toggleFs();
+    else if (e.key === 'k' || e.key === 'K') document.body.classList.toggle('kiosk');
+  });
+  if (/[?&]kiosk\b/.test(location.search)) document.body.classList.add('kiosk');
+
+  applySettings();
+  renderAll(false);
+})();
+</script>
+</body>
+</html>
