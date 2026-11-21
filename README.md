@@ -31,12 +31,21 @@ The display updates as soon as you save in the control panel. Both pages must us
 
 ## Ticket images
 
+Images for every current Texas Lottery scratch-off game (78 games) are saved in `tickets/` as `{game}.gif`. `games.json` lists each game's name, price and top prize. Prices fill in automatically on the display. You can still type a price yourself to override it.
+
 For each game number, images are tried in this order:
 
-1. An image uploaded in the control panel. The file name must contain the game number, for example `2551.png`. Uploaded images are stored in the browser.
-2. `tickets/{game}.jpg`, then `tickets/{game}.png`. Put your own image files in the `tickets/` folder.
-3. The Texas Lottery website URL pattern. You can change this, and the order of all sources, under **Display settings → Image sources**.
+1. An image uploaded in the control panel (stored in the browser).
+2. `tickets/{game}.gif`, `.jpg` or `.png` in this repo.
+3. The live Texas Lottery image at `https://www.texaslottery.com/export/sites/lottery/Images/scratchoffs/{game}_img1.gif`. This covers games released after the last update.
 
-If no image is found, the slot shows the game number with "no image".
+You can change this order under **Display settings → Image sources**.
 
-> The default Texas Lottery URL pattern has not been checked against the live site. If those images don't load, use the `tickets/` folder or upload images, or change the pattern in settings.
+### Updating for new games
+
+```bash
+python3 tools/update_tickets.py   # add --force to re-download every image
+git add tickets games.json && git commit -m "Update tickets" && git push
+```
+
+The script reads the [all scratch-offs list](https://www.texaslottery.com/export/sites/lottery/Games/Scratch_Offs/all.html), saves any missing ticket images and rewrites `games.json`.

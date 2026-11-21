@@ -43,6 +43,7 @@
   .s .f .opts label { white-space: nowrap; display: flex; gap: 4px; align-items: center; cursor: pointer; }
   .s .f .opts a { color: var(--muted); cursor: pointer; }
   .s.dirty { border-color: var(--accent); }
+  .s .f .nm { grid-column: 1 / -1; font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 1em; }
   .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
   .grid2 label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
   .check { flex-direction: row !important; align-items: center; color: var(--fg) !important; font-size: 13px !important; }
@@ -69,6 +70,7 @@
       <label>Price $ <input id="qsPrice" type="text" inputmode="decimal" style="width:90px" placeholder="opt."></label>
       <button class="primary" type="submit">Display</button>
     </form>
+    <div class="muted" id="qsName" style="margin-top:6px;font-weight:600"></div>
     <div class="status" id="qsStatus"></div>
     <div class="muted">Type slot → Tab → game number → Enter. The slot advances automatically so you can load tickets one after another.</div>
   </section>
@@ -76,6 +78,13 @@
   <section>
     <h2>All 74 slots</h2>
     <div class="slots" id="slots"></div>
+  </section>
+
+  <section>
+    <h2>Current Texas scratch-off games <span class="muted" id="catCount"></span></h2>
+    <div class="muted" style="margin-bottom:8px">Tap a game to put it in the Quick set box. Images for all of these are saved in <code>tickets/</code>.</div>
+    <input type="text" id="catFilter" placeholder="Filter by number, name or price…" style="width:100%;max-width:360px;margin-bottom:8px">
+    <div class="lib" id="catalog" style="max-height:420px;overflow:auto"></div>
   </section>
 
   <section>
@@ -149,6 +158,8 @@
   var slots = TXSO.getSlots();
   var settings = TXSO.getSettings();
   var rows = [];
+  var catalog = {};
+  function gameName(g) { var c = catalog[g]; return c ? c.name + ' ($' + c.price + ')' : (g ? 'not in current game list' : ''); }
 
   function status(el, msg, err) {
     el = $(el); el.textContent = msg; el.classList.toggle('err', !!err);
@@ -167,9 +178,9 @@
       d.innerHTML = '<div class="n">' + (i + 1) + '</div><div class="thumb"></div>' +
         '<div class="f"><input type="text" class="g" inputmode="numeric" placeholder="Game #">' +
         '<input type="text" class="p" inputmode="decimal" placeholder="$">' +
-        '<div class="opts"><label><input type="checkbox" class="so"> Sold out</label><a class="clr">clear</a></div></div>';
+        '<div class="nm"></div><div class="opts"><label><input type="checkbox" class="so"> Sold out</label><a class="clr">clear</a></div></div>';
       wrap.appendChild(d);
-      var r = { el: d, g: d.querySelector('.g'), p: d.querySelector('.p'), so: d.querySelector('.so'), thumb: d.querySelector('.thumb') };
+      var r = { el: d, g: d.querySelector('.g'), p: d.querySelector('.p'), so: d.querySelector('.so'), thumb: d.querySelector('.thumb'), nm: d.querySelector('.nm') };
       (function (i, r) {
         function mark() { r.el.classList.toggle('dirty', isDirty(i)); }
         r.g.addEventListener('input', mark);
@@ -197,6 +208,8 @@
     }
   }
   function updateThumb(i, game) {
+    rows[i].nm.textContent = gameName(game);
+    rows[i].p.placeholder = (catalog[game] && catalog[game].price) ? '$' + catalog[game].price : '$';
     var t = rows[i].thumb;
     t._game = game;
     if (!game) { t.innerHTML = '—'; return; }
@@ -220,8 +233,9 @@
   // ---------- Quick set ----------
   $('qsSlot').addEventListener('change', function () {
     var i = (+this.value || 0) - 1;
-    if (i >= 0 && i < N) { $('qsGame').value = slots[i].game; $('qsPrice').value = slots[i].price; }
+    if (i >= 0 && i < N && !clean($('qsGame').value)) { $('qsGame').value = slots[i].game; $('qsPrice').value = slots[i].price; $('qsName').textContent = gameName(slots[i].game); }
   });
+  $('qsGame').addEventListener('input', function () { $('qsName').textContent = gameName(clean(this.value)); });
   $('qs').addEventListener('submit', function (e) {
     e.preventDefault();
     var i = (+$('qsSlot').value || 0) - 1;
@@ -230,7 +244,8 @@
     all[i] = { game: clean($('qsGame').value), price: clean($('qsPrice').value), soldOut: false };
     TXSO.saveSlots(all);
     slots = all; fillSlots();
-    status('qsStatus', all[i].game ? 'Slot ' + (i + 1) + ' → game #' + all[i].game : 'Slot ' + (i + 1) + ' cleared');
+    status('qsStatus', all[i].game ? 'Slot ' + (i + 1) + ' → game #' + all[i].game + (catalog[all[i].game] ? ' ' + catalog[all[i].game].name : '') : 'Slot ' + (i + 1) + ' cleared');
+    $('qsName').textContent = '';
     var next = i + 2 > N ? 1 : i + 2;
     $('qsSlot').value = next;
     $('qsGame').value = slots[next - 1].game; $('qsPrice').value = slots[next - 1].price;
@@ -366,7 +381,31 @@
     else if (kind === 'images') { refreshLib(); fillSlots(); }
   });
 
+  function renderCatalog() {
+    var q = clean($('catFilter').value).toLowerCase();
+    var list = Object.keys(catalog).map(function (k) { return catalog[k]; })
+      .sort(function (a, b) { return (+a.price - +b.price) || (+a.game - +b.game); });
+    var box = $('catalog'); box.innerHTML = '';
+    $('catCount').textContent = '(' + list.length + ')';
+    list.forEach(function (g) {
+      var text = (g.game + ' ' + g.name + ' $' + g.price).toLowerCase();
+      if (q && text.indexOf(q) < 0) return;
+      var it = document.createElement('div');
+      it.className = 'it'; it.style.cursor = 'pointer';
+      it.innerHTML = '<img alt="" loading="lazy"><div><b>#' + g.game + '</b> $' + g.price + '</div><div class="muted"></div>';
+      it.firstChild.src = 'tickets/' + g.game + '.gif';
+      it.lastChild.textContent = g.name;
+      it.onclick = function () {
+        $('qsGame').value = g.game; $('qsName').textContent = gameName(g.game);
+        $('qsSlot').scrollIntoView({ behavior: 'smooth', block: 'center' }); $('qsSlot').focus();
+      };
+      box.appendChild(it);
+    });
+  }
+  $('catFilter').addEventListener('input', renderCatalog);
+
   buildSlots(); fillSlots(); fillSettings(); refreshLib();
+  TXSO.loadCatalog().then(function (c) { catalog = c; renderCatalog(); fillSlots(); });
 })();
 </script>
 </body>

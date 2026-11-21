@@ -15,9 +15,10 @@
     // Image lookup order for a game number. {game} is replaced by the number.
     // Uploaded images (control panel) always win over these.
     imageSources: [
+      'tickets/{game}.gif',
       'tickets/{game}.jpg',
       'tickets/{game}.png',
-      'https://www.texaslottery.com/export/sites/lottery/Images/scratchoffs/{game}_front.jpg'
+      'https://www.texaslottery.com/export/sites/lottery/Images/scratchoffs/{game}_img1.gif'
     ],
     columns: 0,            // 0 = auto-fit
     ticketAspect: 0.62,    // width / height of a ticket image (portrait)
@@ -64,6 +65,10 @@
     var s = readJSON(KEY_SETTINGS, {});
     var out = {};
     for (var k in DEFAULT_SETTINGS) out[k] = (s && s[k] !== undefined) ? s[k] : DEFAULT_SETTINGS[k];
+    // Migrate settings saved with the first (unverified) image URL guess.
+    if (out.imageSources.some(function (u) { return /_front\.jpg$/.test(u); })) {
+      out.imageSources = DEFAULT_SETTINGS.imageSources.slice();
+    }
     return out;
   }
 
@@ -161,7 +166,25 @@
   }
   function clearResolveCache() { resolveCache = {}; }
 
+  /* Game catalog (games.json: number -> name, price, top prize). Built by
+   * tools/update_tickets.py from the Texas Lottery scratch-off list. */
+  var catalogPromise = null;
+  function loadCatalog() {
+    if (!catalogPromise) {
+      catalogPromise = fetch('games.json', { cache: 'no-cache' })
+        .then(function (r) { return r.ok ? r.json() : []; })
+        .catch(function () { return []; })
+        .then(function (list) {
+          var map = {};
+          (list || []).forEach(function (g) { map[String(g.game)] = g; });
+          return map;
+        });
+    }
+    return catalogPromise;
+  }
+
   global.TXSO = {
+    loadCatalog: loadCatalog,
     SLOT_COUNT: SLOT_COUNT,
     DEFAULT_SETTINGS: DEFAULT_SETTINGS,
     getSlots: getSlots, saveSlots: saveSlots, emptySlots: emptySlots,

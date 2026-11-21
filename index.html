@@ -102,6 +102,7 @@
   var settings = TXSO.getSettings();
   var cells = [];
   var renderToken = {};
+  var catalog = {};
 
   // Build the 74 cells once.
   for (var i = 0; i < N; i++) {
@@ -164,7 +165,10 @@
     var barHtml = '';
     if (settings.showSlotNumber) barHtml += '<span class="num">' + (i + 1) + '</span>';
     if (settings.showGameNumber && s.game) barHtml += '<span class="game">#' + esc(s.game) + '</span>';
-    if (settings.showPrice && s.price) barHtml += '<span class="price">$' + esc(s.price.replace(/^\$/, '')) + '</span>';
+    var info = catalog[s.game] || {};
+    var price = s.price || info.price || '';
+    if (settings.showPrice && s.game && price) barHtml += '<span class="price">$' + esc(String(price).replace(/^\$/, '')) + '</span>';
+    el.title = s.game ? ('#' + s.game + (info.name ? ' — ' + info.name : '')) : '';
     bar.innerHTML = barHtml;
 
     if (!s.game) { imgBox.innerHTML = '<div class="ph">' + (i + 1) + '</div>'; return; }
@@ -245,6 +249,7 @@
 
   applySettings();
   renderAll(false);
+  TXSO.loadCatalog().then(function (c) { catalog = c; renderAll(false); });
 })();
 </script>
 </body>
