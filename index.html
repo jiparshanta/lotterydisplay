@@ -26,6 +26,10 @@
     background: #000; font-weight: 700; font-size: var(--bar-size, 11px); line-height: 1.25; padding: 0 .35em;
     white-space: nowrap; overflow: hidden; }
   .slot .bar:empty { display: none; }
+  .slot .badge { position: absolute; left: 0; bottom: 0; z-index: 2; background: rgba(0,0,0,.78); color: #fff;
+    font-weight: 800; font-size: var(--badge-size, 12px); line-height: 1; padding: .2em .35em; border-top-right-radius: 5px; }
+  .slot.empty .badge { display: none; }
+  body.stretch .slot img { width: 100%; height: 100%; object-fit: fill; }
   .slot .num { color: var(--muted); }
   .slot .game { color: var(--fg); }
   .slot .price { color: var(--accent); }
@@ -91,9 +95,9 @@
   </form>
 </div>
 
-<script src="layout.js?v=20261127"></script>
-<script src="games.js?v=20261127"></script>
-<script src="js/store.js?v=20261127"></script>
+<script src="layout.js?v=20261128"></script>
+<script src="games.js?v=20261128"></script>
+<script src="js/store.js?v=20261128"></script>
 <script>
 (function () {
   'use strict';
@@ -111,7 +115,7 @@
     var el = document.createElement('div');
     el.className = 'slot';
     el.dataset.index = i;
-    el.innerHTML = '<div class="img"></div><div class="bar"></div>';
+    el.innerHTML = '<div class="img"></div><div class="bar"></div><div class="badge"></div>';
     el.addEventListener('click', function () { openQuick(+this.dataset.index); });
     grid.appendChild(el);
     cells.push(el);
@@ -122,7 +126,7 @@
     var W = grid.clientWidth, H = grid.clientHeight;
     var gap = +settings.gap || 0;
     var a = settings.imageStyle === 'card' ? 1 : (+settings.ticketAspect || 0.62);
-    var barH = (settings.showSlotNumber || settings.showGameNumber || settings.showPrice) ? 1 : 0;
+    var barH = settings.labelStyle === 'bar' && (settings.showSlotNumber || settings.showGameNumber || settings.showPrice) ? 1 : 0;
     var best = null;
     var fixed = +settings.columns || 0;
     for (var c = 1; c <= N; c++) {
@@ -142,10 +146,18 @@
     if (!best) return;
     var cellW = Math.floor(best.w);
     var cellH = Math.floor(best.h + best.bar);
+    // Square display cards: stretch up to 12% to use leftover space.
+    var stretch = settings.imageStyle === 'card' && !best.bar;
+    document.body.classList.toggle('stretch', stretch);
+    if (stretch) {
+      cellW = Math.floor(Math.min(best.cw, best.w * 1.12));
+      cellH = Math.floor(Math.min(best.ch, best.h * 1.12));
+    }
     grid.style.gridTemplateColumns = 'repeat(' + best.c + ', ' + cellW + 'px)';
     grid.style.gridTemplateRows = 'repeat(' + best.r + ', ' + cellH + 'px)';
     var barSize = Math.max(8, Math.min(18, cellW * 0.12));
     grid.style.setProperty('--bar-size', barSize.toFixed(1) + 'px');
+    grid.style.setProperty('--badge-size', Math.max(10, Math.min(22, cellW * 0.11)).toFixed(1) + 'px');
     grid.style.setProperty('--ph-size', Math.max(10, Math.min(48, cellW * 0.2)).toFixed(1) + 'px');
   }
 
@@ -160,7 +172,7 @@
 
   function renderCell(i, flash) {
     var s = slots[i], el = cells[i];
-    var imgBox = el.firstChild, bar = el.lastChild;
+    var imgBox = el.children[0], bar = el.children[1], badge = el.children[2];
     var token = renderToken[i] = {};
     el.classList.toggle('empty', !s.game);
     el.classList.toggle('soldout', !!(s.game && s.soldOut));
@@ -171,7 +183,10 @@
     var price = s.price || info.price || '';
     if (settings.showPrice && s.game && price) barHtml += '<span class="price">$' + esc(String(price).replace(/^\$/, '')) + '</span>';
     el.title = s.game ? ('#' + s.game + (info.name ? ' — ' + info.name : '')) : '';
-    bar.innerHTML = barHtml;
+    var useBar = settings.labelStyle === 'bar';
+    bar.innerHTML = useBar ? barHtml : '';
+    badge.textContent = !useBar && settings.showSlotNumber ? String(i + 1) : '';
+    badge.style.display = badge.textContent ? '' : 'none';
 
     if (!s.game) { imgBox.innerHTML = '<div class="ph">' + (i + 1) + '</div>'; return; }
     imgBox.innerHTML = '<div class="ph">#' + esc(s.game) + '<small>loading…</small></div>';

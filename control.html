@@ -132,9 +132,14 @@
         <label>Background colour <input type="text" id="setBg"></label>
       </div>
       <div style="display:grid;gap:6px;align-content:start">
+        <label>Labels
+          <select id="setLabel">
+            <option value="badge">Slot number on card corner (bigger cards)</option>
+            <option value="bar">Strip under each card</option>
+          </select></label>
         <label class="check"><input type="checkbox" id="setSlotNo"> Show slot number</label>
-        <label class="check"><input type="checkbox" id="setGameNo"> Show game number</label>
-        <label class="check"><input type="checkbox" id="setPrice"> Show price</label>
+        <label class="check"><input type="checkbox" id="setGameNo"> Show game number (strip only)</label>
+        <label class="check"><input type="checkbox" id="setPrice"> Show price (strip only)</label>
       </div>
     </div>
     <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
@@ -155,9 +160,9 @@
   </section>
 </main>
 
-<script src="layout.js?v=20261127"></script>
-<script src="games.js?v=20261127"></script>
-<script src="js/store.js?v=20261127"></script>
+<script src="layout.js?v=20261128"></script>
+<script src="games.js?v=20261128"></script>
+<script src="js/store.js?v=20261128"></script>
 <script>
 (function () {
   'use strict';
@@ -335,6 +340,7 @@
   function fillSettings() {
     $('setSources').value = settings.imageSources.join('\n');
     $('setStyle').value = settings.imageStyle;
+    $('setLabel').value = settings.labelStyle;
     $('setTitle').value = settings.title;
     $('setCols').value = settings.columns;
     $('setAspect').value = settings.ticketAspect;
@@ -347,6 +353,7 @@
   $('saveSettings').onclick = function () {
     settings = {
       imageStyle: $('setStyle').value,
+      labelStyle: $('setLabel').value,
       cardSources: settings.cardSources,
       imageSources: $('setSources').value.split(/\r?\n/).map(clean).filter(Boolean),
       title: clean($('setTitle').value),

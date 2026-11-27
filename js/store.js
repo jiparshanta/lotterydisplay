@@ -31,10 +31,13 @@
     ],
     columns: 0,            // 0 = auto-fit
     ticketAspect: 0.62,    // width / height of a ticket image (portrait)
+    // 'badge' = small slot number on the card's corner (biggest tiles);
+    // 'bar' = strip under each card with slot #, game # and price.
+    labelStyle: 'badge',
     showSlotNumber: true,
     showGameNumber: true,
     showPrice: true,
-    gap: 4,
+    gap: 2,
     background: '#0b0d12',
     title: ''
   };
