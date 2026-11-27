@@ -95,6 +95,7 @@
     <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
       <button id="bulkApply" class="primary">Apply bulk</button>
       <button id="bulkFill">Load current into box</button>
+      <button id="resetDefault">Reset to default layout</button>
       <button id="clearAll">Clear all slots</button>
     </div>
     <div class="status" id="bulkStatus"></div>
@@ -279,6 +280,14 @@
   $('bulkFill').onclick = function () {
     $('bulk').value = slots.map(function (s, i) { return (i + 1) + ', ' + (s.game || '-') + (s.price ? ', ' + s.price : ''); }).join('\n');
   };
+  $('resetDefault').onclick = function () {
+    TXSO.loadDefaultLayout().then(function (def) {
+      if (!def.some(function (s) { return s.game; })) { status('bulkStatus', 'No default layout has been saved yet.', true); return; }
+      if (!confirm('Replace all 74 slots with the default layout?')) return;
+      TXSO.saveSlots(def); slots = def; fillSlots();
+      status('bulkStatus', 'Default layout restored.');
+    });
+  };
   $('clearAll').onclick = function () {
     if (!confirm('Clear all 74 slots?')) return;
     var all = TXSO.emptySlots(); TXSO.saveSlots(all); slots = all; fillSlots();
@@ -413,6 +422,7 @@
   $('catFilter').addEventListener('input', renderCatalog);
 
   buildSlots(); fillSlots(); fillSettings(); refreshLib();
+  TXSO.ready().then(function () { slots = TXSO.getSlots(); fillSlots(); });
   TXSO.loadCatalog().then(function (c) { catalog = c; renderCatalog(); fillSlots(); });
 })();
 </script>

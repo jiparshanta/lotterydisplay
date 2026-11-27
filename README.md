@@ -54,3 +54,13 @@ git add tickets games.json && git commit -m "Update tickets" && git push
 ```
 
 The script reads the [all scratch-offs list](https://www.texaslottery.com/export/sites/lottery/Games/Scratch_Offs/all.html), saves any missing ticket images and rewrites `games.json`.
+
+## Default layout
+
+`layout.json` holds the default slot assignments. Each entry is either a game number or a `{"game", "price", "soldOut"}` object, and its position in the list is the slot number:
+
+```json
+{ "slots": ["2764", "2780", "2430"] }
+```
+
+A browser that has never saved any slots starts from this layout, so a new computer or a cleared browser shows the right tickets straight away. To go back to it after making changes, click **Reset to default layout** in the control panel's Bulk entry section.

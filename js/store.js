@@ -193,7 +193,38 @@
     return catalogPromise;
   }
 
+  /* Default layout (layout.json in the repo). A browser that has never saved
+   * slots starts from it, and the control panel can reset back to it.
+   * Format: { "slots": ["2764", "2780", ...] } or slot objects
+   * ({game, price, soldOut}); position = slot number. */
+  function loadDefaultLayout() {
+    return fetch('layout.json', { cache: 'no-cache' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .catch(function () { return null; })
+      .then(function (data) {
+        var list = data && Array.isArray(data.slots) ? data.slots : [];
+        var out = emptySlots();
+        for (var i = 0; i < SLOT_COUNT && i < list.length; i++) {
+          var v = list[i];
+          if (v && typeof v === 'object') out[i] = { game: String(v.game || '').trim(), price: String(v.price || '').trim(), soldOut: !!v.soldOut };
+          else out[i] = { game: v == null ? '' : String(v).trim(), price: '', soldOut: false };
+        }
+        return out;
+      });
+  }
+  function hasSavedSlots() {
+    try { return localStorage.getItem(KEY_SLOTS) !== null; } catch (e) { return false; }
+  }
+  // Resolves once slots are available: saved ones, or the default layout.
+  function ready() {
+    if (hasSavedSlots()) return Promise.resolve();
+    return loadDefaultLayout().then(function (slots) {
+      if (!hasSavedSlots() && slots.some(function (s) { return s.game; })) writeJSON(KEY_SLOTS, slots);
+    });
+  }
+
   global.TXSO = {
+    ready: ready, loadDefaultLayout: loadDefaultLayout,
     loadCatalog: loadCatalog,
     SLOT_COUNT: SLOT_COUNT,
     DEFAULT_SETTINGS: DEFAULT_SETTINGS,

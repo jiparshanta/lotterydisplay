@@ -249,6 +249,7 @@
 
   applySettings();
   renderAll(false);
+  TXSO.ready().then(function () { renderAll(true); });
   TXSO.loadCatalog().then(function (c) { catalog = c; renderAll(false); });
 })();
 </script>
