@@ -57,10 +57,10 @@ The script reads the [all scratch-offs list](https://www.texaslottery.com/export
 
 ## Default layout
 
-`layout.json` holds the default slot assignments. Each entry is either a game number or a `{"game", "price", "soldOut"}` object, and its position in the list is the slot number:
+`layout.js` holds the default slot assignments, as `window.TXSO_DEFAULT_LAYOUT`. Each entry is either a game number or a `{"game", "price", "soldOut"}` object, and its position in the list is the slot number:
 
 ```json
 { "slots": ["2764", "2780", "2430"] }
 ```
 
-A browser that has never saved any slots starts from this layout, so a new computer or a cleared browser shows the right tickets straight away. To go back to it after making changes, click **Reset to default layout** in the control panel's Bulk entry section.
+A browser that has never saved any slots, or has only empty ones, starts from this layout, so a new computer or a cleared browser shows the right tickets straight away. To go back to it after making changes, click **Reset to default layout** in the control panel's Bulk entry section.

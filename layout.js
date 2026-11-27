@@ -1,4 +1,6 @@
-{
+// Default slot layout: position = slot number (1-74). Blank string = empty slot.
+// Used by any browser that has no slots saved yet.
+window.TXSO_DEFAULT_LAYOUT = {
  "slots": [
   "2587",
   "2665",
@@ -75,4 +77,4 @@
   "2647",
   "2779"
  ]
-}
+};

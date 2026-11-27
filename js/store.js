@@ -56,8 +56,30 @@
     catch (e) { console.error('Could not save', key, e); return false; }
   }
 
+  function normalize(list) {
+    var out = emptySlots();
+    list = Array.isArray(list) ? list : [];
+    for (var i = 0; i < SLOT_COUNT && i < list.length; i++) {
+      var v = list[i];
+      if (v && typeof v === 'object') out[i] = { game: String(v.game || '').trim(), price: String(v.price || '').trim(), soldOut: !!v.soldOut };
+      else out[i] = { game: v == null ? '' : String(v).trim(), price: '', soldOut: false };
+    }
+    return out;
+  }
+  // Built-in default layout from layout.js (no network request needed).
+  function defaultSlots() {
+    var d = global.TXSO_DEFAULT_LAYOUT;
+    return normalize(d && d.slots);
+  }
+  function anyGame(list) {
+    for (var i = 0; i < list.length; i++) if (list[i] && (list[i].game || typeof list[i] === 'string' && list[i])) return true;
+    return false;
+  }
+
   function getSlots() {
     var s = readJSON(KEY_SLOTS, null);
+    // Nothing saved in this browser (or only blank slots): use the default layout.
+    if (!Array.isArray(s) || !anyGame(s)) return defaultSlots();
     var base = emptySlots();
     if (Array.isArray(s)) {
       for (var i = 0; i < SLOT_COUNT; i++) {
@@ -123,7 +145,18 @@
   }
   function putImage(game, blob) { return tx('readwrite', function (s) { return s.put(blob, String(game)); }).then(function () { notify('images'); }); }
   function deleteImage(game) { return tx('readwrite', function (s) { return s.delete(String(game)); }).then(function () { notify('images'); }); }
-  function getImage(game) { return tx('readonly', function (s) { return s.get(String(game)); }).catch(function () { return undefined; }); }
+  // Some TV browsers never answer IndexedDB requests, so give up after 1.5s.
+  var idbDead = false;
+  function withTimeout(p, ms, fallback) {
+    return new Promise(function (resolve) {
+      var t = setTimeout(function () { idbDead = true; resolve(fallback); }, ms);
+      p.then(function (v) { clearTimeout(t); resolve(v); }, function () { clearTimeout(t); resolve(fallback); });
+    });
+  }
+  function getImage(game) {
+    if (idbDead) return Promise.resolve(undefined);
+    return withTimeout(tx('readonly', function (s) { return s.get(String(game)); }), 1500, undefined);
+  }
   function listImageKeys() { return tx('readonly', function (s) { return s.getAllKeys(); }).catch(function () { return []; }); }
 
   // Object URL cache so we don't recreate blobs on every render.
@@ -179,49 +212,25 @@
   /* Game catalog (games.json: number -> name, price, top prize). Built by
    * tools/update_tickets.py from the Texas Lottery scratch-off list. */
   var catalogPromise = null;
+  function toMap(list) {
+    var map = {};
+    (list || []).forEach(function (g) { map[String(g.game)] = g; });
+    return map;
+  }
   function loadCatalog() {
+    if (!catalogPromise && global.TXSO_GAMES) catalogPromise = Promise.resolve(global.TXSO_GAMES).then(toMap);
     if (!catalogPromise) {
+      if (!global.fetch) return Promise.resolve({});
       catalogPromise = fetch('games.json', { cache: 'no-cache' })
         .then(function (r) { return r.ok ? r.json() : []; })
         .catch(function () { return []; })
-        .then(function (list) {
-          var map = {};
-          (list || []).forEach(function (g) { map[String(g.game)] = g; });
-          return map;
-        });
+        .then(toMap);
     }
     return catalogPromise;
   }
 
-  /* Default layout (layout.json in the repo). A browser that has never saved
-   * slots starts from it, and the control panel can reset back to it.
-   * Format: { "slots": ["2764", "2780", ...] } or slot objects
-   * ({game, price, soldOut}); position = slot number. */
-  function loadDefaultLayout() {
-    return fetch('layout.json', { cache: 'no-cache' })
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .catch(function () { return null; })
-      .then(function (data) {
-        var list = data && Array.isArray(data.slots) ? data.slots : [];
-        var out = emptySlots();
-        for (var i = 0; i < SLOT_COUNT && i < list.length; i++) {
-          var v = list[i];
-          if (v && typeof v === 'object') out[i] = { game: String(v.game || '').trim(), price: String(v.price || '').trim(), soldOut: !!v.soldOut };
-          else out[i] = { game: v == null ? '' : String(v).trim(), price: '', soldOut: false };
-        }
-        return out;
-      });
-  }
-  function hasSavedSlots() {
-    try { return localStorage.getItem(KEY_SLOTS) !== null; } catch (e) { return false; }
-  }
-  // Resolves once slots are available: saved ones, or the default layout.
-  function ready() {
-    if (hasSavedSlots()) return Promise.resolve();
-    return loadDefaultLayout().then(function (slots) {
-      if (!hasSavedSlots() && slots.some(function (s) { return s.game; })) writeJSON(KEY_SLOTS, slots);
-    });
-  }
+  function loadDefaultLayout() { return Promise.resolve(defaultSlots()); }
+  function ready() { return Promise.resolve(); }
 
   global.TXSO = {
     ready: ready, loadDefaultLayout: loadDefaultLayout,
